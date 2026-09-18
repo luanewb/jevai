@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jev AI — Binance ARB/USDT Trading Terminal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="dark-theme">
+  <!-- Top Navigation Bar -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="logo-box">
+        <span class="logo-icon">⚡</span>
+        <span class="logo-text">JEV<span class="logo-accent">AI</span></span>
+        <span class="badge-tag">TERMINAL</span>
+      </div>
+      <div class="pair-badge">
+        <span class="pair-name">ARB / USDT</span>
+        <span class="exchange-tag">BINANCE</span>
+        <span id="current-price" class="pair-price">0.0000</span>
+        <span id="price-change" class="pair-change">+0.00%</span>
+      </div>
+    </div>
+
+    <div class="header-center">
+      <div class="mode-pill" id="mode-badge">
+        <span class="pulse-dot"></span>
+        <span id="mode-text">PAPER TRADING</span>
+      </div>
+      <div class="version-tag" id="app-version">v1.0.0</div>
+    </div>
+
+    <div class="header-right">
+      <button id="btn-toggle-bot" class="btn btn-primary">
+        <span class="btn-icon">▶</span>
+        <span class="btn-label">BẬT BOT</span>
+      </button>
+      <button id="btn-emergency-close" class="btn btn-danger" title="Thoát tất cả vị thế ngay lập tức">
+        <span class="btn-icon">⚠️</span>
+        <span>ĐÓNG TẤT CẢ</span>
+      </button>
+      <button id="btn-open-settings" class="btn btn-ghost" title="Cài đặt tham số">
+        <span class="btn-icon">⚙️</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="terminal-container">
+    <!-- Row 1: Metrics Overview Cards -->
+    <section class="metrics-grid">
+      <div class="metric-card glass">
+        <div class="metric-label">TỔNG TÀI SẢN (EQUITY)</div>
+        <div class="metric-value" id="total-equity">$1,000.00</div>
+        <div class="metric-sub" id="total-pnl">PnL: +$0.00 (+0.00%)</div>
+      </div>
+
+      <div class="metric-card glass">
+        <div class="metric-label">USDT KHẢ DỤNG</div>
+        <div class="metric-value" id="usdt-free">$1,000.00</div>
+        <div class="metric-sub">Sẵn sàng phân bổ vốn</div>
+      </div>
+
+      <div class="metric-card glass">
+        <div class="metric-label">SỐ LƯỢNG ARB NẮM GIỮ</div>
+        <div class="metric-value" id="arb-holding">0.00 ARB</div>
+        <div class="metric-sub" id="arb-value">Trị giá: $0.00 USDT</div>
+      </div>
+
+      <div class="metric-card glass">
+        <div class="metric-label">TỔNG SỐ LỆNH / THẮNG</div>
+        <div class="metric-value" id="total-trades">0 Lệnh</div>
+        <div class="metric-sub" id="win-rate">Tỷ lệ thắng: 0.0%</div>
+      </div>
+    </section>
+
+    <!-- Row 2: Live Chart & Jev AI Brain HUD -->
+    <section class="main-grid">
+      <!-- Left Column: TradingView Chart & Active Position -->
+      <div class="chart-column">
+        <div class="card glass chart-card">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="icon">📈</span>
+              <span>BIỂU ĐỒ NẾN TRỰC TIẾP ARB/USDT</span>
+            </div>
+            <div class="timeframe-selector">
+              <span class="active-tf">5m</span>
+              <span>15m</span>
+              <span>1h</span>
+            </div>
+          </div>
+          <div class="chart-wrapper" id="tradingview-container">
+            <!-- TradingView Widget BEGIN -->
+            <div class="tradingview-widget-container" style="height:100%;width:100%">
+              <div id="tradingview_chart" style="height:calc(100% - 32px);width:100%"></div>
+              <div class="tradingview-widget-copyright"><a href="https://vn.tradingview.com/" rel="noopener nofollow" target="_blank"><span class="blue-text">Theo dõi ARBUSDT trên TradingView</span></a></div>
+            </div>
+            <!-- TradingView Widget END -->
+          </div>
+        </div>
+
+        <!-- Active Position Card -->
+        <div class="card glass position-card" id="position-card">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="icon">🎯</span>
+              <span>VỊ THẾ ĐANG MỞ (ACTIVE POSITION)</span>
+            </div>
+            <span class="pos-status" id="pos-badge">CHƯA CÓ LỆNH</span>
+          </div>
+          <div class="card-body" id="pos-details">
+            <div class="empty-pos-hint">Hiện đang ở trạng thái trống vị thế. Jev AI đang quét tìm điểm vào lệnh tối ưu.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Jev AI Brain Decision Core -->
+      <div class="brain-column">
+        <div class="card glass brain-card">
+          <div class="card-header brain-header">
+            <div class="card-title">
+              <span class="brain-icon pulse-glow">🧠</span>
+              <span class="brain-brand">BỘ NÃO QUYẾT ĐỊNH JEV AI</span>
+            </div>
+            <div class="engine-badge" id="brain-source">jevai.org (System One)</div>
+          </div>
+
+          <div class="brain-hud">
+            <div class="decision-display">
+              <div class="decision-box">
+                <div class="decision-sub">TÍN HIỆU HÀNH ĐỘNG</div>
+                <div class="decision-action action-hold" id="jev-action">HOLD</div>
+              </div>
+              <div class="confidence-box">
+                <div class="decision-sub">ĐỘ TIN CẬY</div>
+                <div class="confidence-value" id="jev-confidence">0%</div>
+                <div class="confidence-bar-bg">
+                  <div class="confidence-bar-fill" id="jev-conf-fill" style="width: 0%"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="decision-meta-row">
+              <div class="meta-item">
+                <span class="meta-label">XÁC SUẤT (P)</span>
+                <span class="meta-val" id="jev-prob">0.00</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">CẤU TRÚC THỊ TRƯỜNG</span>
+                <span class="meta-val" id="jev-regime">CHỜ DỮ LIỆU</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">MỨC RỦI RO</span>
+                <span class="meta-val" id="jev-risk">MEDIUM</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">ĐỘ TRỄ SUY LUẬN</span>
+                <span class="meta-val" id="jev-latency">-- ms</span>
+              </div>
+            </div>
+
+            <div class="thought-stream-box">
+              <div class="thought-stream-title">💡 LUỒNG SUY LUẬN CỦA JEV AI:</div>
+              <div class="thought-content" id="jev-reasoning">
+                Đang khởi động tiến trình phân tích trạng thái thị trường và chỉ báo kỹ thuật ARB/USDT...
+              </div>
+            </div>
+          </div>
+
+          <!-- Indicators Matrix -->
+          <div class="indicators-section">
+            <div class="section-subtitle">TỔNG HỢP CHỈ BÁO KỸ THUẬT ARB</div>
+            <div class="indicators-grid">
+              <div class="ind-pill">
+                <span class="ind-name">RSI (14)</span>
+                <span class="ind-val" id="ind-rsi">--</span>
+              </div>
+              <div class="ind-pill">
+                <span class="ind-name">MACD HIST</span>
+                <span class="ind-val" id="ind-macd">--</span>
+              </div>
+              <div class="ind-pill">
+                <span class="ind-name">ATR (14)</span>
+                <span class="ind-val" id="ind-atr">--</span>
+              </div>
+              <div class="ind-pill">
+                <span class="ind-name">SỔ LỆNH BID/ASK</span>
+                <span class="ind-val" id="ind-book">--</span>
+              </div>
+              <div class="ind-pill">
+                <span class="ind-name">EMA 9/21/50</span>
+                <span class="ind-val" id="ind-ema">--</span>
+              </div>
+              <div class="ind-pill">
+                <span class="ind-name">KHỐI LƯỢNG VOL</span>
+                <span class="ind-val" id="ind-vol">--</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Terminal Logs -->
+        <div class="card glass logs-card">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="icon">📟</span>
+              <span>NHẬT KÝ VẬN HÀNH (LIVE LOGS)</span>
+            </div>
+          </div>
+          <div class="logs-console" id="logs-container">
+            <div class="log-row info">[--:--:--] Đang kết nối tới máy chủ bot...</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Row 3: Trade History Table -->
+    <section class="trades-section">
+      <div class="card glass">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="icon">📜</span>
+            <span>LỊCH SỬ GIAO DỊCH (TRADE HISTORY)</span>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="trades-table">
+            <thead>
+              <tr>
+                <th>THỜI GIAN</th>
+                <th>CẶP TIỀN</th>
+                <th>LOẠI LỆNH</th>
+                <th>GIÁ THỰC HIỆN</th>
+                <th>KHỐI LƯỢNG</th>
+                <th>TỔNG USDT</th>
+                <th>LỢI NHUẬN (PNL)</th>
+                <th>LÝ DO GIAO DỊCH</th>
+              </tr>
+            </thead>
+            <tbody id="trades-tbody">
+              <tr>
+                <td colspan="8" class="text-center text-muted">Chưa có giao dịch nào được ghi nhận.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Settings Modal -->
+  <div class="modal-overlay" id="settings-modal">
+    <div class="modal-card glass">
+      <div class="modal-header">
+        <h3>CÀI ĐẶT THAM SỐ GIAO DỊCH</h3>
+        <button class="modal-close" id="btn-close-settings">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Mức rủi ro mỗi lệnh (% tổng vốn):</label>
+          <input type="number" id="cfg-risk" step="0.1" min="0.5" max="10.0" value="1.5">
+        </div>
+        <div class="form-group">
+          <label>Ngưỡng tự tin tối thiểu của Jev AI (%):</label>
+          <input type="number" id="cfg-conf" step="1" min="50" max="95" value="75">
+        </div>
+        <div class="form-group">
+          <label>Bội số Stop Loss theo ATR (ATR Multiplier):</label>
+          <input type="number" id="cfg-sl" step="0.1" min="1.0" max="5.0" value="1.8">
+        </div>
+        <div class="form-group">
+          <label>Bội số Take Profit theo ATR (ATR Multiplier):</label>
+          <input type="number" id="cfg-tp" step="0.1" min="1.5" max="10.0" value="3.0">
+        </div>
+        <div class="form-group checkbox-group">
+          <label>
+            <input type="checkbox" id="cfg-trailing" checked>
+            Kích hoạt Trailing Stop Loss để bảo vệ lợi nhuận
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="btn-cancel-settings">Hủy</button>
+        <button class="btn btn-primary" id="btn-save-settings">Lưu Cài Đặt</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://s3.tradingview.com/tv.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>
