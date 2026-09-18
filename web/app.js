@@ -178,7 +178,55 @@ function updateDashboard(data) {
     posDetails.innerHTML = `<div class="empty-pos-hint">Hiện đang ở trạng thái trống vị thế. Jev AI đang quét tìm điểm vào lệnh tối ưu.</div>`;
   }
 
-  // 6. Logs Console
+  // 6. AI Experience Memory & Lessons
+  if (data.memory) {
+    const mem = data.memory;
+    const lessonsList = document.getElementById("lessons-list");
+    const streakEl = document.getElementById("memory-streak");
+    const shieldBadge = document.getElementById("adaptive-shield-badge");
+
+    const losses = mem.stats?.consecutive_losses || 0;
+    const wins = mem.stats?.consecutive_wins || 0;
+    if (streakEl) {
+      streakEl.innerText = losses > 0 ? `Chuỗi thua: ${losses}` : `Chuỗi thắng: ${wins}`;
+    }
+
+    if (data.adaptive_risk && shieldBadge) {
+      const ar = data.adaptive_risk;
+      shieldBadge.innerText = `PHÒNG THỦ: ${ar.status || 'BÌNH THƯỜNG'} (${ar.effective_risk_pct}%, Conf: ${ar.effective_min_confidence}%)`;
+      if (ar.status && ar.status.includes("MAX")) {
+        shieldBadge.className = "adaptive-shield-badge shield-danger";
+      } else if (ar.status && ar.status.includes("MID")) {
+        shieldBadge.className = "adaptive-shield-badge shield-warning";
+      } else {
+        shieldBadge.className = "adaptive-shield-badge";
+      }
+    }
+
+    if (lessonsList) {
+      if (mem.recent_lessons && mem.recent_lessons.length > 0) {
+        lessonsList.innerHTML = mem.recent_lessons.map(l => {
+          const isWin = l.is_win;
+          const cardClass = isWin ? "lesson-card win-card" : "lesson-card loss-card";
+          const pnlClass = isWin ? "win" : "loss";
+          return `
+            <div class="${cardClass}">
+              <div class="lesson-top">
+                <span class="lesson-cat">${l.category || (isWin ? 'THẮNG' : 'THUA')}</span>
+                <span class="lesson-pnl ${pnlClass}">${isWin ? '+' : ''}${l.pnl_pct.toFixed(2)}%</span>
+              </div>
+              <div class="lesson-text">${l.lesson}</div>
+              <div class="lesson-time">${l.date_str || ''}</div>
+            </div>
+          `;
+        }).join("");
+      } else {
+        lessonsList.innerHTML = `<div class="lesson-empty">Chưa có bài học nào được ghi nhận. Jev AI sẽ tự động đúc kết kinh nghiệm sau mỗi lệnh đóng.</div>`;
+      }
+    }
+  }
+
+  // 7. Logs Console
   if (data.logs && data.logs.length > 0) {
     const logsBox = document.getElementById("logs-container");
     logsBox.innerHTML = data.logs.map(line => `<div class="log-row">${line}</div>`).join("");

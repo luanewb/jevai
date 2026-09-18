@@ -20,6 +20,8 @@ from core.binance_client import BinanceClient
 from analytics.indicators import TechnicalIndicators
 from brain.state_builder import JevStateBuilder
 from brain.jev_client import JevClient, JevDecisionResponse
+from brain.reflection import reflector
+from brain.memory import memory_store
 from risk.risk_manager import RiskManager
 
 
@@ -135,7 +137,20 @@ class TradingCoordinator:
                             take_profit=0,
                             reason=exit_reason
                         )
-                        self.log(f"Đã đóng vị thế: {res}")
+                        self.log(f"Đã đóng vị thế: {res.get('status')}")
+
+                        # Trigger Post-Mortem Reflection & Memory Learning
+                        if res.get("status") == "SUCCESS" and "order" in res:
+                            order_info = res["order"]
+                            refl = await reflector.reflect_on_trade(
+                                position=open_pos,
+                                exit_price=current_price,
+                                pnl=order_info.get("pnl", 0.0),
+                                pnl_pct=order_info.get("pnl_pct", 0.0),
+                                exit_reason=exit_reason,
+                                current_indicators=indicators
+                            )
+                            self.log(f"🧠 [HỌC HỎI SAI LẦM / KINH NGHIỆM] {refl.get('lesson')}")
 
                 # 8. Check Entry when Flat
                 elif not open_pos and not is_halted:
@@ -158,6 +173,7 @@ class TradingCoordinator:
                         self.log(f"Kết quả mở lệnh: {res.get('status')}")
 
                 # 9. Update state snapshot for Dashboard
+                eff_risk, eff_conf, adaptive_mode = self.risk.get_adaptive_parameters()
                 self.latest_data = {
                     "status": "ACTIVE" if self.is_running else "PAUSED",
                     "ticker": ticker,
@@ -167,7 +183,13 @@ class TradingCoordinator:
                     "open_position": self.binance.paper_open_position if self.binance.is_paper else None,
                     "latest_decision": decision.to_dict(),
                     "trades": self.binance.paper_trades[-15:],
-                    "logs": self.latest_data["logs"]
+                    "logs": self.latest_data["logs"],
+                    "memory": memory_store.get_summary(),
+                    "adaptive_risk": {
+                        "status": adaptive_mode,
+                        "effective_risk_pct": eff_risk,
+                        "effective_min_confidence": eff_conf
+                    }
                 }
 
             except Exception as e:

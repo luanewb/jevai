@@ -7,6 +7,7 @@ Trailing Stop logic, and daily drawdown circuit breakers.
 from typing import Dict, Any, Optional, Tuple
 from config import config
 from brain.jev_client import JevDecisionResponse
+from brain.memory import memory_store
 
 
 class RiskManager:
@@ -21,6 +22,18 @@ class RiskManager:
         
         self.daily_starting_equity = None
         self.circuit_breaker_triggered = False
+
+    def get_adaptive_parameters(self) -> Tuple[float, int, str]:
+        """
+        Calculates adaptive risk percentage and confidence threshold based on loss streaks.
+        Returns: (effective_risk_pct, effective_min_confidence, status_str)
+        """
+        consecutive_losses = memory_store.memory.get("stats", {}).get("consecutive_losses", 0)
+        if consecutive_losses >= 3:
+            return round(max(0.5, self.risk_pct * 0.5), 2), min(90, self.min_confidence + 10), "DEFENSIVE_MAX (3+ losses)"
+        elif consecutive_losses == 2:
+            return round(max(0.7, self.risk_pct * 0.7), 2), min(88, self.min_confidence + 5), "DEFENSIVE_MID (2 losses)"
+        return self.risk_pct, self.min_confidence, "OPTIMAL_NORMAL"
 
     def check_circuit_breaker(self, current_equity: float) -> Tuple[bool, str]:
         """Check if daily loss limit was reached."""
@@ -53,10 +66,12 @@ class RiskManager:
         if not decision.should_execute:
             return {"approved": False, "reason": "Jev AI should_execute flag is False."}
 
-        if decision.confidence < self.min_confidence:
+        effective_risk, effective_conf, adaptive_status = self.get_adaptive_parameters()
+
+        if decision.confidence < effective_conf:
             return {
                 "approved": False,
-                "reason": f"Confidence {decision.confidence}% is below required {self.min_confidence}% threshold."
+                "reason": f"Confidence {decision.confidence}% is below adaptive threshold {effective_conf}% ({adaptive_status})."
             }
 
         usdt_free = balance_info.get("usdt_free", 0.0)
@@ -74,10 +89,8 @@ class RiskManager:
         take_profit = round(current_price + tp_distance, 4)
         risk_reward = round(tp_distance / sl_distance, 2) if sl_distance > 0 else 1.5
 
-        # Position Sizing: Risk X% of equity on this trade
-        # Risk amount ($) = total_equity * (risk_pct / 100)
-        # Position size ($) = Risk amount / (sl_distance / current_price)
-        risk_cash = total_equity * (self.risk_pct / 100.0)
+        # Position Sizing: Risk X% of equity on this trade (adapted)
+        risk_cash = total_equity * (effective_risk / 100.0)
         sl_pct = sl_distance / current_price
         
         target_usdt = risk_cash / sl_pct if sl_pct > 0 else (total_equity * 0.1)

@@ -695,12 +695,146 @@ body.dark-theme {
   margin-top: 24px;
 }
 
+/* AI Memory & Reflection Section */
+.memory-section {
+  margin-top: 4px;
+}
+
+.memory-header {
+  background: linear-gradient(90deg, rgba(139, 92, 246, 0.15), rgba(0, 242, 254, 0.05));
+}
+
+.memory-brand {
+  background: linear-gradient(90deg, #a855f7, #38bdf8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 800;
+}
+
+.memory-status-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.adaptive-shield-badge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 4px;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: var(--color-buy);
+}
+
+.adaptive-shield-badge.shield-warning {
+  background: rgba(234, 179, 8, 0.15);
+  border-color: rgba(234, 179, 8, 0.4);
+  color: var(--color-hold);
+}
+
+.adaptive-shield-badge.shield-danger {
+  background: rgba(244, 63, 94, 0.15);
+  border-color: rgba(244, 63, 94, 0.4);
+  color: var(--color-sell);
+}
+
+.memory-streak {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.memory-body {
+  padding: 16px 20px;
+}
+
+.lessons-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.lesson-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-glass);
+  border-left: 3px solid var(--color-hold);
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.lesson-card:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.lesson-card.win-card {
+  border-left-color: var(--color-buy);
+}
+
+.lesson-card.loss-card {
+  border-left-color: var(--color-sell);
+}
+
+.lesson-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.lesson-cat {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #cbd5e1;
+}
+
+.lesson-pnl {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.lesson-pnl.win { color: var(--color-buy); }
+.lesson-pnl.loss { color: var(--color-sell); }
+
+.lesson-text {
+  font-size: 12px;
+  line-height: 1.45;
+  color: #e2e8f0;
+}
+
+.lesson-time {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.lesson-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-dim);
+  padding: 16px 0;
+}
+
 /* Responsive */
 @media (max-width: 1100px) {
   .metrics-grid {
     grid-template-columns: repeat(2, 1fr);
   }
   .main-grid {
+    grid-template-columns: 1fr;
+  }
+  .lessons-grid {
     grid-template-columns: 1fr;
   }
 }

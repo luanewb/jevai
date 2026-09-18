@@ -5,6 +5,7 @@ into a clean, information-dense context state for Jev AI decision making.
 """
 
 from typing import Dict, Any, Optional
+from brain.memory import memory_store
 
 
 class JevStateBuilder:
@@ -60,6 +61,9 @@ class JevStateBuilder:
                 f"Unrealized PnL: {pnl_pct:+.2f}% | SL: {sl:.4f} | TP: {tp:.4f}"
             )
 
+        # Memory lessons injection
+        lessons_prompt = memory_store.get_recent_lessons_prompt(limit=4)
+
         state = f"""[MARKET: ARB/USDT on Binance]
 - Current Price: {price:.4f} USDT | 24h Change: {pct_24h:+.2f}% | 24h Quote Vol: ${vol_24h:,.0f}
 - Trend Regime: {trend} (Price vs EMA50: {price - ema50:+.4f})
@@ -69,5 +73,8 @@ class JevStateBuilder:
 - Liquidity & Flow: Vol Ratio={vol_ratio:.2f}x SMA20, Orderbook Bid/Ask Ratio={bid_ask_ratio:.2f}, Spread={spread_pct:.3f}%
 - Portfolio Status: Available USDT={usdt_free:.2f}, Total Equity={equity:.2f} USDT
 - Active Position: {pos_str}
+
+[AI EXPERIENCE & LESSONS FROM RECENT TRADES]
+{lessons_prompt}
 """
         return state.strip()
