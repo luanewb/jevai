@@ -3,7 +3,7 @@ Version tracking module for Jev AI Binance Trading Bot.
 Strict adherence to version increment rule on every feature/fix.
 """
 
-__version__ = "1.0.3"
+__version__ = "1.0.1"
 
 def get_version() -> str:
     return __version__

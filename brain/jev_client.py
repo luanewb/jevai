@@ -64,10 +64,102 @@ class JevClient:
         start_time = time.time()
 
         # If API key is provided, attempt call to Jev API or OpenRouter
+        # If API key is provided, attempt call to Jev API or OpenRouter
         if self.api_key and not self.api_key.startswith("your_"):
             try:
-                if "openrouter.ai" in self.endpoint or self.api_key.startswith("sk-or-"):
-                    # OpenRouter OpenAI-compatible format
+                # 1. Check if using Native TypeSafe Jev model (e.g. typesafe/jev-1.13)
+                if "typesafe" in self.model.lower() or "jev" in self.model.lower():
+                    target_url = "https://openrouter.ai/api/alpha/decisions" if ("openrouter.ai" in self.endpoint or self.api_key.startswith("sk-or-")) else self.endpoint
+                    headers = {
+                        "Authorization": f"Bearer {self.api_key}",
+                        "HTTP-Referer": "https://jevai.org",
+                        "X-Title": "Jev AI Trading Bot",
+                        "Content-Type": "application/json"
+                    }
+                    payload = {
+                        "model": self.model,
+                        "state": state,
+                        "questions": {
+                            "action": {
+                                "type": "choice",
+                                "instructions": "Select the optimal trading action for ARB/USDT on Binance",
+                                "criteria": {
+                                    "BUY": "Strong bullish momentum, break above resistance, buy volume dominance",
+                                    "SELL": "Bearish trend, resistance rejection, overbought exhaustion or take profit",
+                                    "HOLD": "Consolidation, neutral signals, chop or unclear market structure"
+                                }
+                            },
+                            "regime": {
+                                "type": "choice",
+                                "instructions": "Identify the current market structure and regime",
+                                "criteria": {
+                                    "BULLISH_TREND": "Price above key moving averages with positive momentum",
+                                    "BEARISH_TREND": "Price below key moving averages with negative momentum",
+                                    "RANGING": "Price oscillating in a horizontal channel without clear direction"
+                                }
+                            },
+                            "risk_level": {
+                                "type": "choice",
+                                "instructions": "Assess the risk level of taking a position now",
+                                "criteria": {
+                                    "LOW": "Clean setup with strong multi-indicator confirmation",
+                                    "MEDIUM": "Standard market risk with normal volatility",
+                                    "HIGH": "Choppy conditions, divergence, or conflicting indicators"
+                                }
+                            },
+                            "should_execute": {
+                                "type": "noul",
+                                "instructions": "Should a trade order be executed right now?"
+                            }
+                        }
+                    }
+                    async with httpx.AsyncClient(timeout=15.0) as client:
+                        resp = await client.post(target_url, json=payload, headers=headers)
+                        if resp.status_code == 200:
+                            data = resp.json()
+                            answers = data.get("answers", {})
+
+                            action_ans = answers.get("action", {})
+                            action = str(action_ans.get("choice", "HOLD")).upper()
+                            action_conf = float(action_ans.get("confidence", 0.75))
+                            action_probs = action_ans.get("probabilities", {})
+                            prob = float(action_probs.get(action, action_conf))
+
+                            regime_ans = answers.get("regime", {})
+                            regime = str(regime_ans.get("choice", "RANGING"))
+
+                            risk_ans = answers.get("risk_level", {})
+                            risk = str(risk_ans.get("choice", "MEDIUM"))
+
+                            exec_ans = answers.get("should_execute", {})
+                            noul_val = float(exec_ans.get("noul", 0.5))
+                            should_exec = noul_val >= 0.5 and action in ["BUY", "SELL"]
+
+                            latency = (time.time() - start_time) * 1000
+                            confidence_pct = int(action_conf * 100)
+
+                            reasoning = (
+                                f"TypeSafe Jev-1.13 ra quyết định {action} (Xác suất p={prob:.2f}, "
+                                f"Độ tin cậy: {confidence_pct}%) trong cấu trúc thị trường {regime} "
+                                f"với mức rủi ro {risk}. Chỉ số thực thi Noul={noul_val:.2f}."
+                            )
+
+                            return JevDecisionResponse(
+                                action=action,
+                                confidence=confidence_pct,
+                                should_execute=should_exec,
+                                action_prob=prob,
+                                regime=regime,
+                                risk_level=risk,
+                                reasoning=reasoning,
+                                source="TypeSafe Jev-1.13 (Native System One)",
+                                latency_ms=latency
+                            )
+                        else:
+                            print(f"[JevClient] Jev decisions error {resp.status_code}: {resp.text}")
+
+                # 2. Standard Chat Completions fallback (for Gemini, DeepSeek, GPT-4o-mini, etc.)
+                elif "openrouter.ai" in self.endpoint or self.api_key.startswith("sk-or-"):
                     headers = {
                         "Authorization": f"Bearer {self.api_key}",
                         "HTTP-Referer": "https://jevai.org",
