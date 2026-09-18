@@ -3,7 +3,7 @@ Version tracking module for Jev AI Binance Trading Bot.
 Strict adherence to version increment rule on every feature/fix.
 """
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 def get_version() -> str:
     return __version__
@@ -33,7 +33,7 @@ def bump_version(part: str = "patch") -> str:
     
     version_file = Path(__file__).resolve()
     content = version_file.read_text(encoding="utf-8")
-    updated = re.sub(r'__version__\s*=\s*"[^"]+"', f'__version__ = "{new_version}"', content)
+    updated = re.sub(r'__version__\s*=\s*"[^"]+"', f'__version__ = "1.0.1"', content)
     version_file.write_text(updated, encoding="utf-8")
     
     return new_version
