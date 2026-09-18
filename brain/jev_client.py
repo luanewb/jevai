@@ -63,37 +63,91 @@ class JevClient:
         """
         start_time = time.time()
 
-        # If API key is provided, attempt call to Jev API
+        # If API key is provided, attempt call to Jev API or OpenRouter
         if self.api_key and not self.api_key.startswith("your_"):
             try:
-                headers = {
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Content-Type": "application/json"
-                }
-                
-                # Jev-1 System One Schema
-                payload = {
-                    "model": self.model,
-                    "state": state,
-                    "questions": {
-                        "action": ["BUY", "SELL", "HOLD"],
-                        "confidence": ["score", 1, 100],
-                        "should_execute": "bool",
-                        "regime": ["BULLISH_TREND", "BEARISH_TREND", "RANGING", "HIGH_VOLATILITY"],
-                        "risk_level": ["LOW", "MEDIUM", "HIGH"]
+                if "openrouter.ai" in self.endpoint or self.api_key.startswith("sk-or-"):
+                    # OpenRouter OpenAI-compatible format
+                    headers = {
+                        "Authorization": f"Bearer {self.api_key}",
+                        "HTTP-Referer": "https://jevai.org",
+                        "X-Title": "Jev AI Trading Bot",
+                        "Content-Type": "application/json"
                     }
-                }
-
-                async with httpx.AsyncClient(timeout=10.0) as client:
-                    resp = await client.post(self.endpoint, json=payload, headers=headers)
-                    if resp.status_code == 200:
-                        data = resp.json()
-                        latency = (time.time() - start_time) * 1000
-                        return self._parse_jev_response(data, latency)
-                    else:
-                        print(f"[JevClient] API returned status {resp.status_code}: {resp.text}")
+                    payload = {
+                        "model": self.model or "google/gemini-2.5-flash",
+                        "messages": [
+                            {
+                                "role": "system",
+                                "content": (
+                                    "You are Jev AI (jevai.org / System One Decision Core) for ARB/USDT trading on Binance.\n"
+                                    "Analyze the given market state and output ONLY valid JSON format:\n"
+                                    "{\n"
+                                    '  "action": "BUY" | "SELL" | "HOLD",\n'
+                                    '  "confidence": 1-100,\n'
+                                    '  "action_prob": 0.0-1.0,\n'
+                                    '  "should_execute": true | false,\n'
+                                    '  "regime": "BULLISH_TREND" | "BEARISH_TREND" | "RANGING" | "HIGH_VOLATILITY",\n'
+                                    '  "risk_level": "LOW" | "MEDIUM" | "HIGH",\n'
+                                    '  "reasoning": "giải thích ngắn gọn súc tích bằng tiếng Việt"\n'
+                                    "}"
+                                )
+                            },
+                            {
+                                "role": "user",
+                                "content": state
+                            }
+                        ],
+                        "response_format": {"type": "json_object"}
+                    }
+                    target_url = self.endpoint if "openrouter.ai" in self.endpoint else "https://openrouter.ai/api/v1/chat/completions"
+                    async with httpx.AsyncClient(timeout=15.0) as client:
+                        resp = await client.post(target_url, json=payload, headers=headers)
+                        if resp.status_code == 200:
+                            data = resp.json()
+                            content_str = data["choices"][0]["message"]["content"]
+                            parsed = json.loads(content_str)
+                            latency = (time.time() - start_time) * 1000
+                            return JevDecisionResponse(
+                                action=str(parsed.get("action", "HOLD")).upper(),
+                                confidence=int(parsed.get("confidence", 70)),
+                                should_execute=bool(parsed.get("should_execute", False)),
+                                action_prob=float(parsed.get("action_prob", 0.75)),
+                                regime=str(parsed.get("regime", "RANGING")),
+                                risk_level=str(parsed.get("risk_level", "MEDIUM")),
+                                reasoning=str(parsed.get("reasoning", "Jev AI quyết định qua OpenRouter.")),
+                                source=f"OPENROUTER ({self.model})",
+                                latency_ms=latency
+                            )
+                        else:
+                            print(f"[JevClient] OpenRouter status {resp.status_code}: {resp.text}")
+                else:
+                    # Official TypeSafe System One Endpoint
+                    headers = {
+                        "Authorization": f"Bearer {self.api_key}",
+                        "Content-Type": "application/json"
+                    }
+                    payload = {
+                        "model": self.model,
+                        "state": state,
+                        "questions": {
+                            "action": ["BUY", "SELL", "HOLD"],
+                            "confidence": ["score", 1, 100],
+                            "should_execute": "bool",
+                            "regime": ["BULLISH_TREND", "BEARISH_TREND", "RANGING", "HIGH_VOLATILITY"],
+                            "risk_level": ["LOW", "MEDIUM", "HIGH"]
+                        }
+                    }
+                    async with httpx.AsyncClient(timeout=10.0) as client:
+                        resp = await client.post(self.endpoint, json=payload, headers=headers)
+                        if resp.status_code == 200:
+                            data = resp.json()
+                            latency = (time.time() - start_time) * 1000
+                            return self._parse_jev_response(data, latency)
+                        else:
+                            print(f"[JevClient] TypeSafe API status {resp.status_code}: {resp.text}")
             except Exception as e:
-                print(f"[JevClient] Connection error to Jev API: {e}")
+                print(f"[JevClient] Error calling AI API: {e}")
 
         # Fallback to Jev Decision Emulator
         if self.emulator_fallback:
