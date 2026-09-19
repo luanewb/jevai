@@ -203,6 +203,23 @@ function updateDashboard(data) {
       }
     }
 
+    const pendingList = document.getElementById("pending-mistakes-list");
+    if (pendingList) {
+      if (mem.pending_mistakes && mem.pending_mistakes.length > 0) {
+        pendingList.innerHTML = mem.pending_mistakes.map(p => `
+          <div class="pending-card">
+            <div class="pending-top">
+              <span class="lesson-cat">${p.category}</span>
+              <span class="pending-strike">Cảnh báo: ${p.count}/2 Lần</span>
+            </div>
+            <div class="lesson-text" style="color: #fef08a; font-size: 11px;">${p.last_lesson}</div>
+          </div>
+        `).join("");
+      } else {
+        pendingList.innerHTML = `<div class="lesson-empty">Không có lỗi nào đang trong danh sách chờ. Mọi lỗi cần xuất hiện 2 lần để xác nhận.</div>`;
+      }
+    }
+
     if (lessonsList) {
       if (mem.recent_lessons && mem.recent_lessons.length > 0) {
         lessonsList.innerHTML = mem.recent_lessons.map(l => {

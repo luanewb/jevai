@@ -139,7 +139,7 @@ class TradingCoordinator:
                         )
                         self.log(f"Đã đóng vị thế: {res.get('status')}")
 
-                        # Trigger Post-Mortem Reflection & Memory Learning
+                        # Trigger Post-Mortem Reflection & Memory Learning (2-Strike Filter)
                         if res.get("status") == "SUCCESS" and "order" in res:
                             order_info = res["order"]
                             refl = await reflector.reflect_on_trade(
@@ -150,7 +150,12 @@ class TradingCoordinator:
                                 exit_reason=exit_reason,
                                 current_indicators=indicators
                             )
-                            self.log(f"🧠 [HỌC HỎI SAI LẦM / KINH NGHIỆM] {refl.get('lesson')}")
+                            if refl.get("promoted"):
+                                self.log(f"🧠 [BÀI HỌC ĐƯỢC XÁC NHẬN (2 LẦN) - ĐÃ LƯU BỘ NHỚ] {refl.get('lesson')}")
+                            elif not refl.get("is_win", True):
+                                self.log(f"🔍 [THEO DÕI LỖI LẦN 1] '{refl.get('category')}': Chưa lưu bộ nhớ, chờ xác nhận nếu tái diễn.")
+                            else:
+                                self.log(f"✨ [LỆNH THẮNG] {refl.get('lesson')}")
 
                 # 8. Check Entry when Flat
                 elif not open_pos and not is_halted:

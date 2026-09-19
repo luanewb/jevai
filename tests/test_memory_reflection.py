@@ -32,9 +32,9 @@ class TestMemoryAndReflection(unittest.TestCase):
     def tearDown(self):
         self.temp_dir.cleanup()
 
-    def test_memory_storage_and_streak(self):
-        # Record a loss
-        self.mem.record_trade_reflection(
+    def test_two_strike_mistake_filter(self):
+        # 1. First loss of BULL_TRAP (Strike 1) -> Monitored, NOT promoted
+        res1 = self.mem.record_trade_reflection(
             trade_id="TEST-1",
             side="BUY",
             entry_price=0.25,
@@ -44,12 +44,13 @@ class TestMemoryAndReflection(unittest.TestCase):
             lesson="Cắt lỗ do dính bẫy giá Bull Trap",
             mistake_category="BULL_TRAP"
         )
-        self.assertEqual(self.mem.memory["stats"]["losses"], 1)
-        self.assertEqual(self.mem.memory["stats"]["consecutive_losses"], 1)
-        self.assertEqual(self.mem.memory["stats"]["wins"], 0)
+        self.assertFalse(res1["promoted"])
+        self.assertEqual(res1.get("strike"), 1)
+        self.assertEqual(len(self.mem.memory["lessons"]), 0)
+        self.assertEqual(self.mem.memory["pending_mistakes"]["BULL_TRAP"]["count"], 1)
 
-        # Record a second loss
-        self.mem.record_trade_reflection(
+        # 2. First loss of another category (OVERBOUGHT) (Strike 1) -> Monitored, NOT promoted
+        res2 = self.mem.record_trade_reflection(
             trade_id="TEST-2",
             side="BUY",
             entry_price=0.24,
@@ -59,27 +60,52 @@ class TestMemoryAndReflection(unittest.TestCase):
             lesson="Mua khi RSI quá mua dẫn tới thoái lui",
             mistake_category="OVERBOUGHT"
         )
-        self.assertEqual(self.mem.memory["stats"]["consecutive_losses"], 2)
+        self.assertFalse(res2["promoted"])
+        self.assertEqual(len(self.mem.memory["lessons"]), 0)
+        self.assertEqual(self.mem.memory["pending_mistakes"]["OVERBOUGHT"]["count"], 1)
 
-        # Verify prompt format
-        prompt = self.mem.get_recent_lessons_prompt()
-        self.assertIn("THUA (-)", prompt)
-        self.assertIn("CẢNH BÁO", prompt)
-
-        # Record a win -> resets consecutive losses
-        self.mem.record_trade_reflection(
+        # 3. Second loss of BULL_TRAP (Strike 2) -> PROMOTED to official memory!
+        res3 = self.mem.record_trade_reflection(
             trade_id="TEST-3",
             side="BUY",
             entry_price=0.23,
-            exit_price=0.245,
-            pnl=8.0,
-            pnl_pct=+3.5,
+            exit_price=0.22,
+            pnl=-6.0,
+            pnl_pct=-2.5,
+            lesson="Cắt lỗ do dính bẫy giá Bull Trap lần 2",
+            mistake_category="BULL_TRAP"
+        )
+        self.assertTrue(res3["promoted"])
+        self.assertEqual(res3.get("strikes"), 2)
+        self.assertEqual(len(self.mem.memory["lessons"]), 1)
+        self.assertIn("XÁC NHẬN LỖI LẶP LẠI (2 LẦN)", self.mem.memory["lessons"][0]["lesson"])
+        self.assertEqual(self.mem.memory["pending_mistakes"]["BULL_TRAP"]["count"], 0)
+
+        # 4. Check prompt has confirmed lesson and warning
+        prompt = self.mem.get_recent_lessons_prompt()
+        self.assertIn("[THUA -2.50%]", prompt)
+        self.assertIn("⚠️ CẢNH BÁO", prompt)
+
+        # 5. Winning trade -> resets streak
+        res4 = self.mem.record_trade_reflection(
+            trade_id="TEST-4",
+            side="BUY",
+            entry_price=0.22,
+            exit_price=0.24,
+            pnl=10.0,
+            pnl_pct=+4.0,
             lesson="Chốt lời thành công theo ATR",
             mistake_category="TAKE_PROFIT_SUCCESS"
         )
+        self.assertTrue(res4["is_win"])
         self.assertEqual(self.mem.memory["stats"]["consecutive_losses"], 0)
         self.assertEqual(self.mem.memory["stats"]["wins"], 1)
-        self.assertEqual(self.mem.memory["stats"]["consecutive_wins"], 1)
+
+        # 6. Test clear_memory()
+        self.mem.clear_memory()
+        self.assertEqual(len(self.mem.memory["lessons"]), 0)
+        self.assertEqual(len(self.mem.memory["pending_mistakes"]), 0)
+        self.assertEqual(self.mem.memory["stats"]["total_closed_trades"], 0)
 
     def test_reflector_heuristic(self):
         reflector = TradeReflector()
