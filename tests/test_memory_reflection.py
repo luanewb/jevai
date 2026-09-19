@@ -97,10 +97,26 @@ class TestMemoryAndReflection(unittest.TestCase):
         self.assertEqual(cat, "OVERBOUGHT_BULL_TRAP")
 
     def test_adaptive_risk_shield(self):
-        risk = RiskManager()
-        # Test normal
-        eff_risk, eff_conf, mode = risk.get_adaptive_parameters()
-        self.assertIn("OPTIMAL", mode)
+        from brain.memory import memory_store
+        orig_losses = memory_store.memory.get("stats", {}).get("consecutive_losses", 0)
+        try:
+            risk = RiskManager()
+            # Test normal
+            memory_store.memory["stats"]["consecutive_losses"] = 0
+            eff_risk, eff_conf, mode = risk.get_adaptive_parameters()
+            self.assertIn("OPTIMAL", mode)
+
+            # Test mid defense (2 losses)
+            memory_store.memory["stats"]["consecutive_losses"] = 2
+            eff_risk, eff_conf, mode = risk.get_adaptive_parameters()
+            self.assertIn("DEFENSIVE_MID", mode)
+
+            # Test max defense (3+ losses)
+            memory_store.memory["stats"]["consecutive_losses"] = 3
+            eff_risk, eff_conf, mode = risk.get_adaptive_parameters()
+            self.assertIn("DEFENSIVE_MAX", mode)
+        finally:
+            memory_store.memory["stats"]["consecutive_losses"] = orig_losses
 
     def test_state_builder_includes_memory(self):
         ticker = {"price": 0.21, "percentage_24h": 5.0, "volume_24h": 10000000.0}

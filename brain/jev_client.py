@@ -67,9 +67,20 @@ class JevClient:
         # If API key is provided, attempt call to Jev API or OpenRouter
         if self.api_key and not self.api_key.startswith("your_"):
             try:
-                # 1. Check if using Native TypeSafe Jev model (e.g. typesafe/jev-1.13)
-                if "typesafe" in self.model.lower() or "jev" in self.model.lower():
-                    target_url = "https://openrouter.ai/api/alpha/decisions" if ("openrouter.ai" in self.endpoint or self.api_key.startswith("sk-or-")) else self.endpoint
+                # 1. Check if using Native TypeSafe Jev model (e.g. typesafe/jev-1.13 or official jev-1.13.0)
+                if "typesafe" in self.model.lower() or "jev" in self.model.lower() or self.api_key.startswith("apikey_"):
+                    is_official = "api.typesafe.ai" in self.endpoint or self.api_key.startswith("apikey_")
+                    if is_official:
+                        target_url = "https://api.typesafe.ai/v1/systemone"
+                        model_id = self.model
+                        if "typesafe/" in model_id:
+                            model_id = model_id.replace("typesafe/", "")
+                        if model_id in ["jev-1.13", "jev-1", "jev", ""]:
+                            model_id = "jev-1.13.0"
+                    else:
+                        target_url = "https://openrouter.ai/api/alpha/decisions" if ("openrouter.ai" in self.endpoint or self.api_key.startswith("sk-or-")) else self.endpoint
+                        model_id = self.model
+
                     headers = {
                         "Authorization": f"Bearer {self.api_key}",
                         "HTTP-Referer": "https://jevai.org",
@@ -77,7 +88,7 @@ class JevClient:
                         "Content-Type": "application/json"
                     }
                     payload = {
-                        "model": self.model,
+                        "model": model_id,
                         "state": state,
                         "questions": {
                             "action": {
@@ -138,8 +149,10 @@ class JevClient:
                             latency = (time.time() - start_time) * 1000
                             confidence_pct = int(action_conf * 100)
 
+                            source_name = "TypeSafe AI Official (jev-1.13.0)" if is_official else f"TypeSafe Jev-1.13 (OpenRouter)"
+
                             reasoning = (
-                                f"TypeSafe Jev-1.13 ra quyết định {action} (Xác suất p={prob:.2f}, "
+                                f"{source_name} ra quyết định {action} (Xác suất p={prob:.2f}, "
                                 f"Độ tin cậy: {confidence_pct}%) trong cấu trúc thị trường {regime} "
                                 f"với mức rủi ro {risk}. Chỉ số thực thi Noul={noul_val:.2f}."
                             )
@@ -152,7 +165,7 @@ class JevClient:
                                 regime=regime,
                                 risk_level=risk,
                                 reasoning=reasoning,
-                                source="TypeSafe Jev-1.13 (Native System One)",
+                                source=source_name,
                                 latency_ms=latency
                             )
                         else:
